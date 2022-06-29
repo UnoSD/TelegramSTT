@@ -1,0 +1,705 @@
+{
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "actions": {
+        "Get_BOT_secret": {
+            "inputs": {
+                "host": {
+                    "connection": {
+                        "name": "@parameters('$connections')['$$CONNECTIONNAME$$']['connectionId']"
+                    }
+                },
+                "method": "get",
+                "path": "/secrets/@{encodeURIComponent('$$BOTSECRET$$')}/value"
+            },
+            "runAfter": {},
+            "type": "ApiConnection"
+        },
+        "Get_Speech_secret": {
+            "inputs": {
+                "host": {
+                    "connection": {
+                        "name": "@parameters('$connections')['$$CONNECTIONNAME$$']['connectionId']"
+                    }
+                },
+                "method": "get",
+                "path": "/secrets/@{encodeURIComponent('$$SPEECHSECRET$$')}/value"
+            },
+            "runAfter": {
+                "Get_BOT_secret": [
+                    "Succeeded"
+                ]
+            },
+            "type": "ApiConnection"
+        },
+        "Get_transcribed_file_info": {
+            "inputs": {
+                "headers": {
+                    "Ocp-Apim-Subscription-Key": "@body('Get_Speech_secret')?['value']"
+                },
+                "method": "GET",
+                "uri": "@body('Parse_transcribe_API_response')?['links']?['files']"
+            },
+            "runAfter": {
+                "Poll_until_transcription_completed": [
+                    "Succeeded"
+                ]
+            },
+            "type": "Http"
+        },
+        "Get_transcription": {
+            "inputs": {
+                "method": "GET",
+                "uri": "@{first(body('Parse_transcribed_file_info_API_JSON_response')?['values'])?['links']?['contentUrl']}"
+            },
+            "runAfter": {
+                "Parse_transcribed_file_info_API_JSON_response": [
+                    "Succeeded"
+                ]
+            },
+            "type": "Http"
+        },
+        "Initialize_variable_TranscriptionStatus": {
+            "inputs": {
+                "variables": [
+                    {
+                        "name": "TranscriptionStatus",
+                        "type": "string",
+                        "value": "@body('Parse_transcribe_API_response')?['status']"
+                    }
+                ]
+            },
+            "runAfter": {
+                "Parse_transcribe_API_response": [
+                    "Succeeded"
+                ]
+            },
+            "type": "InitializeVariable"
+        },
+        "Parse_Telegram_file_response": {
+            "inputs": {
+                "content": "@body('Request_file_URL')",
+                "schema": {
+                    "properties": {
+                        "ok": {
+                            "type": "boolean"
+                        },
+                        "result": {
+                            "properties": {
+                                "file_id": {
+                                    "type": "string"
+                                },
+                                "file_path": {
+                                    "type": "string"
+                                },
+                                "file_size": {
+                                    "type": "integer"
+                                },
+                                "file_unique_id": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "runAfter": {
+                "Request_file_URL": [
+                    "Succeeded"
+                ]
+            },
+            "type": "ParseJson"
+        },
+        "Parse_transcribe_API_response": {
+            "inputs": {
+                "content": "@body('Transcribe_audio')",
+                "schema": {
+                    "properties": {
+                        "createdDateTime": {
+                            "type": "string"
+                        },
+                        "displayName": {
+                            "type": "string"
+                        },
+                        "lastActionDateTime": {
+                            "type": "string"
+                        },
+                        "links": {
+                            "properties": {
+                                "files": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "locale": {
+                            "type": "string"
+                        },
+                        "model": {
+                            "properties": {
+                                "self": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "properties": {
+                            "properties": {
+                                "channels": {
+                                    "items": {
+                                        "type": "integer"
+                                    },
+                                    "type": "array"
+                                },
+                                "diarizationEnabled": {
+                                    "type": "boolean"
+                                },
+                                "profanityFilterMode": {
+                                    "type": "string"
+                                },
+                                "punctuationMode": {
+                                    "type": "string"
+                                },
+                                "wordLevelTimestampsEnabled": {
+                                    "type": "boolean"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "self": {
+                            "type": "string"
+                        },
+                        "status": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "runAfter": {
+                "Transcribe_audio": [
+                    "Succeeded"
+                ]
+            },
+            "type": "ParseJson"
+        },
+        "Parse_transcribed_file_info_API_JSON_response": {
+            "inputs": {
+                "content": "@body('Get_transcribed_file_info')",
+                "schema": {
+                    "properties": {
+                        "values": {
+                            "items": {
+                                "properties": {
+                                    "createdDateTime": {
+                                        "type": "string"
+                                    },
+                                    "kind": {
+                                        "type": "string"
+                                    },
+                                    "links": {
+                                        "properties": {
+                                            "contentUrl": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "properties": {
+                                        "properties": {
+                                            "size": {
+                                                "type": "integer"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "self": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "self",
+                                    "name",
+                                    "kind",
+                                    "properties",
+                                    "createdDateTime",
+                                    "links"
+                                ],
+                                "type": "object"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "runAfter": {
+                "Get_transcribed_file_info": [
+                    "Succeeded"
+                ]
+            },
+            "type": "ParseJson"
+        },
+        "Parse_transcription_JSON": {
+            "inputs": {
+                "content": "@body('Get_transcription')",
+                "schema": {
+                    "properties": {
+                        "combinedRecognizedPhrases": {
+                            "items": {
+                                "properties": {
+                                    "channel": {
+                                        "type": "integer"
+                                    },
+                                    "display": {
+                                        "type": "string"
+                                    },
+                                    "itn": {
+                                        "type": "string"
+                                    },
+                                    "lexical": {
+                                        "type": "string"
+                                    },
+                                    "maskedITN": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "channel",
+                                    "lexical",
+                                    "itn",
+                                    "maskedITN",
+                                    "display"
+                                ],
+                                "type": "object"
+                            },
+                            "type": "array"
+                        },
+                        "duration": {
+                            "type": "string"
+                        },
+                        "durationInTicks": {
+                            "type": "integer"
+                        },
+                        "recognizedPhrases": {
+                            "items": {
+                                "properties": {
+                                    "channel": {
+                                        "type": "integer"
+                                    },
+                                    "duration": {
+                                        "type": "string"
+                                    },
+                                    "durationInTicks": {
+                                        "type": "integer"
+                                    },
+                                    "nBest": {
+                                        "items": {
+                                            "properties": {
+                                                "confidence": {
+                                                    "type": "number"
+                                                },
+                                                "display": {
+                                                    "type": "string"
+                                                },
+                                                "itn": {
+                                                    "type": "string"
+                                                },
+                                                "lexical": {
+                                                    "type": "string"
+                                                },
+                                                "maskedITN": {
+                                                    "type": "string"
+                                                },
+                                                "words": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "confidence": {
+                                                                "type": "number"
+                                                            },
+                                                            "duration": {
+                                                                "type": "string"
+                                                            },
+                                                            "durationInTicks": {
+                                                                "type": "integer"
+                                                            },
+                                                            "offset": {
+                                                                "type": "string"
+                                                            },
+                                                            "offsetInTicks": {
+                                                                "type": "integer"
+                                                            },
+                                                            "word": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "word",
+                                                            "offset",
+                                                            "duration",
+                                                            "offsetInTicks",
+                                                            "durationInTicks",
+                                                            "confidence"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array"
+                                                }
+                                            },
+                                            "required": [
+                                                "confidence",
+                                                "lexical",
+                                                "itn",
+                                                "maskedITN",
+                                                "display",
+                                                "words"
+                                            ],
+                                            "type": "object"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "offset": {
+                                        "type": "string"
+                                    },
+                                    "offsetInTicks": {
+                                        "type": "integer"
+                                    },
+                                    "recognitionStatus": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "recognitionStatus",
+                                    "channel",
+                                    "offset",
+                                    "duration",
+                                    "offsetInTicks",
+                                    "durationInTicks",
+                                    "nBest"
+                                ],
+                                "type": "object"
+                            },
+                            "type": "array"
+                        },
+                        "source": {
+                            "type": "string"
+                        },
+                        "timestamp": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "runAfter": {
+                "Get_transcription": [
+                    "Succeeded"
+                ]
+            },
+            "type": "ParseJson"
+        },
+        "Poll_until_transcription_completed": {
+            "actions": {
+                "Get_transcription_status": {
+                    "inputs": {
+                        "headers": {
+                            "Ocp-Apim-Subscription-Key": "@body('Get_Speech_secret')?['value']"
+                        },
+                        "method": "GET",
+                        "uri": "@{outputs('Transcribe_audio')['headers']?['Location']}"
+                    },
+                    "runAfter": {
+                        "Poll_delay": [
+                            "Succeeded"
+                        ]
+                    },
+                    "type": "Http"
+                },
+                "Parse_transcription_status_JSON": {
+                    "inputs": {
+                        "content": "@body('Get_transcription_status')",
+                        "schema": {
+                            "properties": {
+                                "createdDateTime": {
+                                    "type": "string"
+                                },
+                                "displayName": {
+                                    "type": "string"
+                                },
+                                "lastActionDateTime": {
+                                    "type": "string"
+                                },
+                                "links": {
+                                    "properties": {
+                                        "files": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "locale": {
+                                    "type": "string"
+                                },
+                                "model": {
+                                    "properties": {
+                                        "self": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "properties": {
+                                    "properties": {
+                                        "channels": {
+                                            "items": {
+                                                "type": "integer"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "diarizationEnabled": {
+                                            "type": "boolean"
+                                        },
+                                        "profanityFilterMode": {
+                                            "type": "string"
+                                        },
+                                        "punctuationMode": {
+                                            "type": "string"
+                                        },
+                                        "wordLevelTimestampsEnabled": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "self": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "runAfter": {
+                        "Get_transcription_status": [
+                            "Succeeded"
+                        ]
+                    },
+                    "type": "ParseJson"
+                },
+                "Poll_delay": {
+                    "inputs": {
+                        "interval": {
+                            "count": 1,
+                            "unit": "Second"
+                        }
+                    },
+                    "runAfter": {},
+                    "type": "Wait"
+                },
+                "Update_status_variable": {
+                    "inputs": {
+                        "name": "TranscriptionStatus",
+                        "value": "@body('Parse_transcription_status_JSON')?['status']"
+                    },
+                    "runAfter": {
+                        "Parse_transcription_status_JSON": [
+                            "Succeeded"
+                        ]
+                    },
+                    "type": "SetVariable"
+                }
+            },
+            "expression": "@equals(variables('TranscriptionStatus'), 'Succeeded')",
+            "limit": {
+                "count": 60,
+                "timeout": "PT1H"
+            },
+            "runAfter": {
+                "Initialize_variable_TranscriptionStatus": [
+                    "Succeeded"
+                ]
+            },
+            "type": "Until"
+        },
+        "Request_file_URL": {
+            "inputs": {
+                "body": {
+                    "file_id": "@{triggerBody()?['message']?['voice']?['file_id']}"
+                },
+                "method": "POST",
+                "uri": "https://api.telegram.org/bot@{body('Get_BOT_secret')?['value']}/getFile"
+            },
+            "runAfter": {
+                "Get_Speech_secret": [
+                    "Succeeded"
+                ]
+            },
+            "type": "Http"
+        },
+        "Send_transcription_to_Telegram": {
+            "inputs": {
+                "body": {
+                    "chat_id": "@triggerBody()?['message']?['chat']?['id']",
+                    "text": "@{first(body('Parse_transcription_JSON')?['combinedRecognizedPhrases'])?['display']}"
+                },
+                "method": "POST",
+                "uri": "https://api.telegram.org/bot@{body('Get_BOT_secret')?['value']}/sendMessage"
+            },
+            "runAfter": {
+                "Parse_transcription_JSON": [
+                    "Succeeded"
+                ]
+            },
+            "type": "Http"
+        },
+        "Transcribe_audio": {
+            "description": "https://westeurope.api.cognitive.microsoft.com/speechtotext/v3.0/transcriptions",
+            "inputs": {
+                "body": {
+                    "contentUrls": [
+                        "https://api.telegram.org/file/bot@{body('Get_BOT_secret')?['value']}/@{body('Parse_Telegram_file_response')?['result']?['file_path']}"
+                    ],
+                    "displayName": "Something",
+                    "locale": "it-IT",
+                    "properties": {
+                        "diarizationEnabled": false,
+                        "profanityFilterMode": "None",
+                        "punctuationMode": "DictatedAndAutomatic",
+                        "wordLevelTimestampsEnabled": true
+                    }
+                },
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Ocp-Apim-Subscription-Key": "@body('Get_Speech_secret')?['value']"
+                },
+                "method": "POST",
+                "uri": "https://westeurope.api.cognitive.microsoft.com/speechtotext/v3.0/transcriptions"
+            },
+            "runAfter": {
+                "Parse_Telegram_file_response": [
+                    "Succeeded"
+                ]
+            },
+            "type": "Http"
+        }
+    },
+    "contentVersion": "1.0.0.0",
+    "outputs": {},
+    "parameters": {
+        "$connections": {
+            "defaultValue": {},
+            "type": "Object"
+        }
+    },
+    "triggers": {
+        "manual": {
+            "description": "Webhook called from Telegram bot",
+            "inputs": {
+                "schema": {
+                    "properties": {
+                        "message": {
+                            "properties": {
+                                "chat": {
+                                    "properties": {
+                                        "first_name": {
+                                            "type": "string"
+                                        },
+                                        "id": {
+                                            "type": "integer"
+                                        },
+                                        "type": {
+                                            "type": "string"
+                                        },
+                                        "username": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "date": {
+                                    "type": "integer"
+                                },
+                                "forward_date": {
+                                    "type": "integer"
+                                },
+                                "forward_from": {
+                                    "properties": {
+                                        "first_name": {
+                                            "type": "string"
+                                        },
+                                        "id": {
+                                            "type": "integer"
+                                        },
+                                        "is_bot": {
+                                            "type": "boolean"
+                                        },
+                                        "last_name": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "from": {
+                                    "properties": {
+                                        "first_name": {
+                                            "type": "string"
+                                        },
+                                        "id": {
+                                            "type": "integer"
+                                        },
+                                        "is_bot": {
+                                            "type": "boolean"
+                                        },
+                                        "language_code": {
+                                            "type": "string"
+                                        },
+                                        "username": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "message_id": {
+                                    "type": "integer"
+                                },
+                                "voice": {
+                                    "properties": {
+                                        "duration": {
+                                            "type": "integer"
+                                        },
+                                        "file_id": {
+                                            "type": "string"
+                                        },
+                                        "file_size": {
+                                            "type": "integer"
+                                        },
+                                        "file_unique_id": {
+                                            "type": "string"
+                                        },
+                                        "mime_type": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "update_id": {
+                            "type": "integer"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "kind": "Http",
+            "type": "Request"
+        }
+    }
+}

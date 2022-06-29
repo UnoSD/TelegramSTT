@@ -1,0 +1,4 @@
+name: TelegramSTT
+runtime: dotnet
+backend:
+  url: file://~/.pulumi/project-stacks/TelegramSTT
