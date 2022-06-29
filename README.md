@@ -4,6 +4,8 @@ Creates a Telegram bot to transcribe audio messages.
 
 It uses an **Azure Logic App** invoked by the **Telegram BOT webhook** that in turn calls the **Azure Speech services** to transcribe the audio and the bot responds with the transcribed message.
 
+![diagram](https://github.com/UnoSD/TelegramSTT/raw/master/TelegramSTT.png)
+
 ## How to create a Telegram bot
 
 From Telegram, contact `@BotFather`
