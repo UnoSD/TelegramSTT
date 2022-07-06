@@ -19,8 +19,8 @@ open Pulumi.AzureNative.Logic
 open Pulumi.FSharp.Outputs
 open Pulumi.FSharp.Random
 open Pulumi.FSharp
-open FSharp.Data
 open System.IO
+open System
 open Pulumi
 
 let connectionDefinition = Pulumi.FSharp.AzureNative.Web.Inputs.apiConnectionDefinitionProperties
@@ -145,12 +145,14 @@ Deployment.run (fun () ->
             let! speechSecretName = speechSecret.Name
             //let! kvConnectionName = kvConnection.Name
             
+            let usernames : string list = Config().GetObject("accept-chat-usernames")
+            
             return File.ReadAllText("Workflow.json")
                        .Replace("$$CONNECTIONNAME$$", connectionName)            
                        .Replace("$$BOTSECRET$$", botSecretName)            
-                       .Replace("$$SPEECHSECRET$$", speechSecretName)            
+                       .Replace("$$SPEECHSECRET$$", speechSecretName)
+                       .Replace("$$USERNAMES$$", String.Join(", ", usernames |> List.map (fun u -> $"'{u}'")))
         } |> InputJson.op_Implicit
-
 
     let kvConnectionParameter =
         output {

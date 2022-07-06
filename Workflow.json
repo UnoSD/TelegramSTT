@@ -11,7 +11,11 @@
                 "method": "get",
                 "path": "/secrets/@{encodeURIComponent('$$BOTSECRET$$')}/value"
             },
-            "runAfter": {},
+            "runAfter": {
+                "Terminate_for_unauthorized_users": [
+                    "Succeeded"
+                ]
+            },
             "type": "ApiConnection"
         },
         "Get_Speech_secret": {
@@ -557,6 +561,32 @@
                 ]
             },
             "type": "Http"
+        },
+        "Terminate_for_unauthorized_users": {
+            "actions": {},
+            "else": {
+                "actions": {
+                    "Terminate": {
+                        "inputs": {
+                            "runStatus": "Failed"
+                        },
+                        "runAfter": {},
+                        "type": "Terminate"
+                    }
+                }
+            },
+            "expression": {
+                "and": [
+                    {
+                        "equals": [
+                            "@contains(createArray($$USERNAMES$$), triggerBody()?['message']?['chat']?['username'])",
+                            true
+                        ]
+                    }
+                ]
+            },
+            "runAfter": {},
+            "type": "If"
         },
         "Transcribe_audio": {
             "description": "https://westeurope.api.cognitive.microsoft.com/speechtotext/v3.0/transcriptions",
